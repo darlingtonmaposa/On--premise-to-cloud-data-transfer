@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: ""
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Parameters:
+        - VPC
+        - Subnet
+        - KeyName
+        - SecurityGroupIds
+        - LatestWindowsAmiId
+
+Parameters:
+  VPC:
+    Description: VPC to deploy resources into.
+    Type: AWS::EC2::VPC::Id
+  Subnet:
+    Description: Subnet to deploy resources into.
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroupIds:
+    Description: Specify the security group/s for resources.
+    Type: AWS::EC2::SecurityGroup::Id
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the file server.
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+  LatestWindowsAmiId:
+    Description: Do Not modify the below default value!
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id
+    Default: "/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base"
+  
+Resources:
+  WindowsInstanceRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: "Delete"
+    Properties:
+      AssumeRolePolicyDocument:  # Required
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal: 
+            Service:
+            - ec2.amazonaws.com
+          Action:
+            - sts:AssumeRole 
+  
+  WindowsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      Path: "/"
+      Roles: 
+        - Ref: "WindowsInstanceRole"
+
+  WindowsInstanceRolePolicy:
+    Type: AWS::IAM::Policy
+    DeletionPolicy: Delete
+    Properties:
+      PolicyName: WindowsInstanceRolePolicy # Required
+      PolicyDocument:  #Required
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+            Resource: '*'
+        Version: '2012-10-17'
+      Roles:
+        - Ref: WindowsInstanceRole
+
+
+  WindowsInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: 
+        Ref: "WindowsInstanceProfile"
+      ImageId: 
+        Ref: "LatestWindowsAmiId"
+      InstanceType: "t2.micro"
+      KeyName: 
+        Ref: "KeyName"
+      SecurityGroupIds: 
+        - Ref: "SecurityGroupIds"
+      SubnetId: 
+        Ref: "Subnet"
+      Tags: 
+        - Key: "Name"
+          Value: "Ample-Extract-Windows-Instance"
+  
